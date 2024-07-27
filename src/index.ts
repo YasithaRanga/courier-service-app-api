@@ -1,15 +1,17 @@
 import express from 'express';
 import { graphqlHTTP } from 'express-graphql';
 import dotenv from 'dotenv';
-import { schema } from './graphql/schema';
-import { protectedResolvers, unprotectedResolvers } from './graphql/resolvers';
-import { PrismaClient } from '@prisma/client';
+import { schema } from './graphql/user/schema';
 import { authMiddleware } from './middleware/auth';
 import { roleMiddleware } from './middleware/role';
+import {
+  adminResolvers,
+  protectedResolvers,
+  unprotectedResolvers,
+} from './graphql';
 
 dotenv.config();
 
-const prisma = new PrismaClient();
 const app = express();
 
 // Middleware for parsing JSON bodies
@@ -25,6 +27,17 @@ app.use(
   })
 );
 
+// Protected GraphQL endpoint
+app.use(
+  '/graphql',
+  authMiddleware,
+  graphqlHTTP({
+    schema,
+    rootValue: protectedResolvers,
+    graphiql: true,
+  })
+);
+
 // Protected GraphQL endpoint with role-based access control
 app.use(
   '/graphql',
@@ -32,7 +45,7 @@ app.use(
   roleMiddleware('ADMIN'), // Example: only ADMIN can access
   graphqlHTTP({
     schema,
-    rootValue: protectedResolvers,
+    rootValue: adminResolvers,
     graphiql: true,
   })
 );

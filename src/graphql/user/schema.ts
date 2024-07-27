@@ -5,7 +5,7 @@ export const schema = buildSchema(`
     id: ID!
     name: String!
     email: String!
-    phoneNumber: String!
+    address: String
     createdAt: String!
     role: Role!
   }
@@ -26,7 +26,7 @@ export const schema = buildSchema(`
     name: String!
     email: String!
     password: String!
-    phoneNumber: String!
+    address: String
     role: String
   }
 

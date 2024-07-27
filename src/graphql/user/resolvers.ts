@@ -11,7 +11,7 @@ interface UserInput {
   name: string;
   email: string;
   password: string;
-  phoneNumber: string;
+  address?: string;
   role?: string;
 }
 
@@ -22,7 +22,7 @@ interface AuthData {
   role: string;
 }
 
-export const unprotectedResolvers = {
+export const unprotectedUserResolvers = {
   createUser: async ({ userInput }: { userInput: UserInput }) => {
     try {
       const existingUser = await prisma.user.findUnique({
@@ -43,12 +43,17 @@ export const unprotectedResolvers = {
         throw new Error('Role not found.');
       }
 
+      if (role.name === 'USER' && !userInput.address) {
+        throw new Error('Address is required for users.');
+      }
+      console.log(role);
+
       const user = await prisma.user.create({
         data: {
           name: userInput.name,
           email: userInput.email,
           password: hashedPassword,
-          phoneNumber: userInput.phoneNumber,
+          address: userInput.address || '',
           role: {
             connect: { id: role.id },
           },
@@ -103,4 +108,4 @@ export const unprotectedResolvers = {
   },
 };
 
-export const protectedResolvers = {};
+export const protectedUserResolvers = {};
