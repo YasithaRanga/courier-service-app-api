@@ -1,36 +1,55 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import dotenv from 'dotenv';
+import { authExcludedResolvers } from '../graphql';
 
-dotenv.config();
-
-interface DecodedToken {
-  userId: number;
-  email: string;
-  role: string;
-  iat: number;
-  exp: number;
+interface AuthRequest extends Request {
+  user?: any;
+  resolverNames?: string[];
 }
 
 export const authMiddleware = (
-  req: Request,
+  req: AuthRequest,
   res: Response,
   next: NextFunction
 ) => {
-  const token = req.header('x-auth-token');
+  const hasExcludedResolvers = req.resolverNames?.some((name: string) =>
+    authExcludedResolvers.includes(name)
+  );
+  if (hasExcludedResolvers) {
+    return next();
+  }
 
+  const authHeader = req.get('Authorization');
+  if (!authHeader) {
+    req.user = null;
+    return res
+      .status(401)
+      .json({ message: 'Authorization is required', success: false });
+  }
+
+  const token = authHeader.split(' ')[1];
   if (!token) {
-    return res.status(401).json({ msg: 'No token, authorization denied' });
+    req.user = null;
+    return res
+      .status(401)
+      .json({ message: 'Token is required', success: false });
   }
 
+  let decodedToken;
   try {
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET as string
-    ) as DecodedToken;
-    req.user = decoded;
-    next();
+    decodedToken = jwt.verify(token, process.env.JWT_SECRET as string);
   } catch (err) {
-    res.status(401).json({ msg: 'Token is not valid' });
+    req.user = null;
+    return res
+      .status(502)
+      .json({ message: 'Token is expired', success: false });
   }
+
+  if (!decodedToken) {
+    req.user = null;
+    return res.status(404).json({ message: 'User not found', success: false });
+  }
+
+  req.user = decodedToken;
+  next();
 };

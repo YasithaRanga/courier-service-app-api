@@ -1,97 +1,22 @@
+import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { PrismaClient } from '@prisma/client';
-import dotenv from 'dotenv';
-
-dotenv.config();
 
 const prisma = new PrismaClient();
 
-interface UserInput {
-  name: string;
-  email: string;
-  password: string;
-  address?: string;
-  role?: string;
-}
-
-interface AuthData {
-  userId: number;
-  token: string;
-  tokenExpiration: number;
-  role: string;
-}
-
-export const unprotectedUserResolvers = {
-  createUser: async ({ userInput }: { userInput: UserInput }) => {
-    try {
-      const existingUser = await prisma.user.findUnique({
-        where: { email: userInput.email },
-      });
-
-      if (existingUser) {
-        throw new Error('User exists already.');
-      }
-
-      const hashedPassword = await bcrypt.hash(userInput.password, 12);
-
-      const role = await prisma.role.findUnique({
-        where: { name: userInput.role ? userInput.role : 'USER' },
-      });
-
-      if (!role) {
-        throw new Error('Role not found.');
-      }
-
-      if (role.name === 'USER' && !userInput.address) {
-        throw new Error('Address is required for users.');
-      }
-      console.log(role);
-
-      const user = await prisma.user.create({
-        data: {
-          name: userInput.name,
-          email: userInput.email,
-          password: hashedPassword,
-          address: userInput.address || '',
-          role: {
-            connect: { id: role.id },
-          },
-        },
-        include: { role: true },
-      });
-
-      return { ...user, password: null };
-    } catch (err) {
-      throw err;
-    }
-  },
-
-  login: async ({
-    email,
-    password,
-  }: {
-    email: string;
-    password: string;
-  }): Promise<AuthData> => {
-    try {
+export const userResolvers = {
+  Query: {
+    login: async (_: any, args: { email: string; password: string }) => {
       const user = await prisma.user.findUnique({
-        where: { email },
-        include: { role: true },
+        where: { email: args.email },
       });
+      if (!user) throw new Error('User does not exist');
 
-      if (!user) {
-        throw new Error('User does not exist!');
-      }
-
-      const isEqual = await bcrypt.compare(password, user.password);
-
-      if (!isEqual) {
-        throw new Error('Password is incorrect!');
-      }
+      const isEqual = await bcrypt.compare(args.password, user.password);
+      if (!isEqual) throw new Error('Password is incorrect');
 
       const token = jwt.sign(
-        { userId: user.id, email: user.email, role: user.role.name },
+        { userId: user.id, email: user.email, role: user.roleId },
         process.env.JWT_SECRET as string,
         { expiresIn: '1h' }
       );
@@ -100,12 +25,34 @@ export const unprotectedUserResolvers = {
         userId: user.id,
         token,
         tokenExpiration: 1,
-        role: user.role.name,
+        role: user.roleId,
       };
-    } catch (err) {
-      throw err;
-    }
+    },
+    getUser: async (_: any, args: { email: string }) => {
+      const user = await prisma.user.findUnique({
+        where: { email: args.email },
+      });
+      if (!user) throw new Error('User does not exist');
+
+      return user;
+    },
+  },
+  Mutation: {
+    createUser: async (_: any, args: { userInput: any }, context: any) => {
+      if (!context.user || context.user.role !== 'ADMIN')
+        throw new Error('Not authorized');
+      const { name, email, password, address, role } = args.userInput;
+      const hashedPassword = await bcrypt.hash(password, 12);
+      const userRole = await prisma.role.findUnique({ where: { name: role } });
+      return await prisma.user.create({
+        data: {
+          name,
+          email,
+          password: hashedPassword,
+          address,
+          roleId: userRole?.id ?? 1,
+        },
+      });
+    },
   },
 };
-
-export const protectedUserResolvers = {};

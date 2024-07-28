@@ -14,18 +14,50 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
+  id        Int        @id @default(autoincrement())
   name      String
-  email     String   @unique
+  email     String     @unique
   address   String
   password  String
   roleId    Int
-  role      Role     @relation(fields: [roleId], references: [id])
-  createdAt DateTime @default(now())
+  role      Role       @relation(fields: [roleId], references: [id])
+  createdAt DateTime   @default(now())
+  Shipment  Shipment[]
 }
 
 model Role {
-  id    Int    @id @default(autoincrement())
-  name  String @unique
-  users User[]
+  id   Int    @id @default(autoincrement())
+  name String @unique
+  User User[]
+}
+
+model Shipment {
+  id                   Int             @id @default(autoincrement())
+  senderId             Int
+  senderName           String
+  senderAddress        String
+  sender               User            @relation(fields: [senderId], references: [id])
+  recipientName        String
+  recipientAddress     String
+  packageDescription   String
+  packageWeight        Float
+  packageDimensions    String
+  shipmentDate         DateTime        @default(now())
+  expectedDeliveryDate DateTime
+  shipmentStatus       String
+  trackingNumber       String          @unique
+  shippingMethod       String
+  insuranceValue       Float
+  specialInstructions  String?
+  shipmentCost         Float
+  paymentMethod        String
+  statusHistory        StatusHistory[]
+}
+
+model StatusHistory {
+  id         Int      @id @default(autoincrement())
+  shipmentId Int
+  shipment   Shipment @relation(fields: [shipmentId], references: [id])
+  status     String
+  updatedAt  DateTime @default(now())
 }

@@ -1,57 +1,30 @@
+import 'dotenv/config';
 import express from 'express';
-import { graphqlHTTP } from 'express-graphql';
-import dotenv from 'dotenv';
-import { schema } from './graphql/user/schema';
+import { ApolloServer } from 'apollo-server-express';
+import { schema } from './graphql';
+import { Context, createContext } from './context';
 import { authMiddleware } from './middleware/auth';
 import { roleMiddleware } from './middleware/role';
-import {
-  adminResolvers,
-  protectedResolvers,
-  unprotectedResolvers,
-} from './graphql';
+import { extractResolverNames } from './middleware/resolver';
 
-dotenv.config();
+const app: any = express();
 
-const app = express();
-
-// Middleware for parsing JSON bodies
 app.use(express.json());
 
-// Unprotected GraphQL endpoint
-app.use(
-  '/graphql',
-  graphqlHTTP({
-    schema,
-    rootValue: unprotectedResolvers,
-    graphiql: true,
-  })
-);
+app.use(extractResolverNames);
 
-// Protected GraphQL endpoint
-app.use(
-  '/graphql',
-  authMiddleware,
-  graphqlHTTP({
-    schema,
-    rootValue: protectedResolvers,
-    graphiql: true,
-  })
-);
+app.use(authMiddleware);
 
-// Protected GraphQL endpoint with role-based access control
-app.use(
-  '/graphql',
-  authMiddleware,
-  roleMiddleware('ADMIN'), // Example: only ADMIN can access
-  graphqlHTTP({
-    schema,
-    rootValue: adminResolvers,
-    graphiql: true,
-  })
-);
+app.use(roleMiddleware('ADMIN'));
 
-const PORT = process.env.PORT || 5000;
+const server = new ApolloServer({
+  schema,
+  context: ({ req }: Context) => createContext(req),
+});
 
+server.applyMiddleware({ app });
+
+const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}/graphql`);
+  console.log(`Server ready at http://localhost:${PORT}${server.graphqlPath}`);
 });
