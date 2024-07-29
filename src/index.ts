@@ -6,8 +6,11 @@ import { Context, createContext } from './context';
 import { authMiddleware } from './middleware/auth';
 import { roleMiddleware } from './middleware/role';
 import { extractResolverNames } from './middleware/resolver';
+import cors from 'cors';
 
 const app: any = express();
+
+app.use(cors());
 
 app.use(express.json());
 
