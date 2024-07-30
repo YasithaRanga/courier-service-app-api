@@ -38,5 +38,6 @@ export const userSchema = gql(`
   type Query {
     login(email: String!, password: String!): AuthData!
     getUser(email: String!): User!
+    getAuth(userId: Int!): User!
   }
 `);

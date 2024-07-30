@@ -51,11 +51,14 @@ export const shipmentSchema = gql(`
 
   type Query {
     getShipment(trackingNumber: String!): Shipment!
+    getShipments: [Shipment!]!
+    getShipmentsByUser(userId: Int!): [Shipment!]!
     getShipmentStatusHistory(shipmentId: ID!): [StatusHistory!]!
   }
 
   type Mutation {
     createShipment(shipmentInput: ShipmentInput!): Shipment
     updateShipmentStatus(statusUpdateInput: StatusUpdateInput!): Shipment
+    deleteShipment(id: Int!): Shipment
   }
 `);
